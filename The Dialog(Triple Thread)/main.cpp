@@ -238,7 +238,7 @@ int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surfa
 		SRFBuff[frame].SRF=SDL_CreateRGBSurface(0, 1024, 600, 32,0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
 		SDL_BlitSurface(TotalBack,NULL,SRFBuff[frame].SRF,&pos_render);
 		SRFBuff[frame].Available=true;
-		frame=(frame+1)%50;
+		frame=(frame+1)%200;
 		SDL_UnlockMutex(BufferLock);
 		SDL_CondSignal(SetBuf);
 		//cout<<"SRF\n";
@@ -333,7 +333,7 @@ int DrawScr(void* p)
 			//SDL_CondWait(SetBuf,BufferLock);
 			SRFBuff[top].Available=false;
 			SDL_UnlockMutex(BufferLock);
-			top=(top+1)%50;
+			top=(top+1)%200;
 		}//else
 			//SDL_CondWait(SetBuf,BufferLock);
 		SDL_CondSignal(FillBuf);
