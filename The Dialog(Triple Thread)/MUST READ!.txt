@@ -1,3 +1,7 @@
 Not finished yet.
+<<<<<<< HEAD
 Just for reference,compile and run.
 This is the 3rd edition,and use less cpu when unfocused. 
+=======
+Just for reference,and u can compile.
+>>>>>>> origin/master
