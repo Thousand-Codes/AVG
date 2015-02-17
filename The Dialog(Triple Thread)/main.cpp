@@ -29,9 +29,8 @@ SDL_Event e;
 SDL_Window *window;
 SDL_Surface *icon;
 SDL_Renderer *renderer;
-SDL_mutex *BufferLock;
-SDL_cond *FillBuf;
-SDL_cond *SetBuf;
+SDL_mutex *BufferLock,*winmtx;
+SDL_cond *FillBuf,*SetBuf,*redraw;
 
 TTF_Font *font;
 Mix_Music *BGM;
@@ -56,12 +55,15 @@ int main(int argc, char * argv[])
     
     SDL_Thread *Draw;
 	SDL_Thread *compute;
+	bool red=true;
     if(!init(SDL_ALL))
         cout<<"init failed.";
 	BufferLock=SDL_CreateMutex();
+	winmtx=SDL_CreateMutex();
 	FillBuf=SDL_CreateCond();
 	SetBuf=SDL_CreateCond();
-	SDL_CondSignal(FillBuf);
+	redraw=SDL_CreateCond();
+	//SDL_CondSignal(FillBuf);
 	compute=SDL_CreateThread(SRFMk,"SurfacePro",NULL);
     window=SDL_CreateWindow("Steins;Gate", SDL_WINDOWPOS_UNDEFINED,SDL_WINDOWPOS_UNDEFINED , 1024, 600, SDL_WINDOW_SHOWN);
     icon=IMG_Load("F:/VS2010PJ/GAME_Dia/Release/lib/i.png");
@@ -73,6 +75,8 @@ int main(int argc, char * argv[])
     Draw=SDL_CreateThread(DrawScr, "DrawScreen" , NULL);
     while(!quit)
     {
+		if(red)
+			SDL_CondSignal(redraw);
         while(SDL_PollEvent(&e))
             {
                 if (e.type==SDL_QUIT){
@@ -89,22 +93,59 @@ int main(int argc, char * argv[])
                     SDL_Quit();
                     return 0;
                     
-                }
-                if (e.type==SDL_KEYDOWN) {
+				}
+				if(red)
+					SDL_CondSignal(redraw);
+                if (e.type==SDL_KEYDOWN)
                     switch (e.key.keysym.sym)
                     {
                         case 0x0d:
                             StackPointer++;
                             break;
-                    }
-                }
-                SDL_Delay(50);
+					}
+				if(red)
+					SDL_CondSignal(redraw);
+				if(e.type==SDL_WINDOWEVENT)
+					switch (e.window.event)
+					{
+						case SDL_WINDOWEVENT_SHOWN:
+							Mix_ResumeMusic();
+							red=true;
+							//SDL_CondSignal(redraw);
+							break;
+						case SDL_WINDOWEVENT_RESTORED:
+							Mix_ResumeMusic();
+							red=true;
+							//SDL_CondSignal(redraw);
+							break;
+						case SDL_WINDOWEVENT_HIDDEN:
+							Mix_PauseMusic();
+							red=false;
+							break;
+						case SDL_WINDOWEVENT_MINIMIZED:
+							Mix_PauseMusic();
+							red=false;
+							break;
+						case SDL_WINDOWEVENT_FOCUS_GAINED:
+							if(Mix_PausedMusic())
+								Mix_ResumeMusic();
+							red=true;
+							//SDL_CondSignal(redraw);
+							break;
+						case SDL_WINDOWEVENT_FOCUS_LOST:
+							Mix_PauseMusic();
+							red=false;
+							break;
+					}
+					if(red)
+						SDL_CondSignal(redraw);
+                SDL_Delay(10);
             }
-        
-            SDL_Delay(50);
-        }
-        SDL_Delay(50);
+		if(red)
+			SDL_CondSignal(redraw);
+        SDL_Delay(10);
     }
+}
     
 
 
@@ -144,9 +185,12 @@ int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surfa
     CreateNameBox(name,TotalBack);
     
     for (int i=0; i<len-2; i++) {
-            SDL_RenderClear(renderer);
-        
+        SDL_RenderClear(renderer);
+        SDL_LockMutex(winmtx);
+		SDL_CondWait(redraw,winmtx);
+		SDL_UnlockMutex(winmtx);
         for (int j=i; j<i+3; j++) {
+			//SDL_CondSignal(SetBuf);
             if (M_end){
                 SDL_FreeSurface(character);
                 SDL_FreeSurface(Shade);
@@ -238,7 +282,7 @@ int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surfa
 		SRFBuff[frame].SRF=SDL_CreateRGBSurface(0, 1024, 600, 32,0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
 		SDL_BlitSurface(TotalBack,NULL,SRFBuff[frame].SRF,&pos_render);
 		SRFBuff[frame].Available=true;
-		frame=(frame+1)%50;
+		frame=(frame+1)%200;
 		SDL_UnlockMutex(BufferLock);
 		SDL_CondSignal(SetBuf);
 		//cout<<"SRF\n";
@@ -315,9 +359,13 @@ int DrawScr(void* p)
 		while(OldTime+FRESH>SDL_GetTicks())
 		{
 			SDL_Delay(11);
+			//SDL_CondSignal(FillBuf);
 			if (M_end)
 				return 0;
 		}
+		SDL_LockMutex(winmtx);
+		SDL_CondWait(redraw,winmtx);
+		SDL_UnlockMutex(winmtx);
 		if(SRFBuff[top].SRF!=NULL)
 			All=SDL_CreateTextureFromSurface(renderer,SRFBuff[top].SRF);
 		if (M_end)
@@ -333,7 +381,7 @@ int DrawScr(void* p)
 			//SDL_CondWait(SetBuf,BufferLock);
 			SRFBuff[top].Available=false;
 			SDL_UnlockMutex(BufferLock);
-			top=(top+1)%50;
+			top=(top+1)%200;
 		}//else
 			//SDL_CondWait(SetBuf,BufferLock);
 		SDL_CondSignal(FillBuf);

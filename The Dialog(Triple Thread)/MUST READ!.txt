@@ -1,2 +1,3 @@
 Not finished yet.
-Just for reference,but don't compile.
+Just for reference,compile and run.
+This is the 3rd edition,and use less cpu when unfocused. 
