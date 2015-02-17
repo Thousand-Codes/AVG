@@ -27,7 +27,7 @@ class BufferUnit{
 public:
 	SDL_Surface *SRF;
 	bool Available;
-	BufferUnit(){Available=false;}
+	BufferUnit(){Available=false; SRF=NULL;}
 };
 #endif
 

@@ -26,13 +26,17 @@ using std::string;
 
 bool quit=false,M_end=false,P_wait=true;
 SDL_Event e;
-Mix_Music *BGM;
 SDL_Window *window;
 SDL_Surface *icon;
-TTF_Font *font;
 SDL_Renderer *renderer;
+SDL_mutex *BufferLock;
+SDL_cond *FillBuf;
+SDL_cond *SetBuf;
+
+TTF_Font *font;
+Mix_Music *BGM;
 int StackPointer=0;
-BufferUnit *SRFBuff[20];
+BufferUnit SRFBuff[200];
 
 int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surface *Background);
 void cls();
@@ -54,16 +58,19 @@ int main(int argc, char * argv[])
 	SDL_Thread *compute;
     if(!init(SDL_ALL))
         cout<<"init failed.";
-    
+	BufferLock=SDL_CreateMutex();
+	FillBuf=SDL_CreateCond();
+	SetBuf=SDL_CreateCond();
+	SDL_CondSignal(FillBuf);
+	compute=SDL_CreateThread(SRFMk,"SurfacePro",NULL);
     window=SDL_CreateWindow("Steins;Gate", SDL_WINDOWPOS_UNDEFINED,SDL_WINDOWPOS_UNDEFINED , 1024, 600, SDL_WINDOW_SHOWN);
     icon=IMG_Load("F:/VS2010PJ/GAME_Dia/Release/lib/i.png");
     SDL_SetWindowIcon(window, icon);
     BGM=Mix_LoadMUS("F:/VS2010PJ/GAME_Dia/Release/lib/BGM/bgm05.ogg");
     Mix_PlayMusic(BGM,-1);
     //SDL_ShowCursor(0);
-	compute=SDL_CreateThread(SRFMk,"SurfacePro",NULL);
+	
     Draw=SDL_CreateThread(DrawScr, "DrawScreen" , NULL);
-    
     while(!quit)
     {
         while(SDL_PollEvent(&e))
@@ -109,7 +116,6 @@ int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surfa
     SDL_Surface *character=NULL;
     SDL_Surface *Shade=NULL;
     SDL_Surface *mouth=NULL;
-	SDL_Texture *mTexture;
     SDL_Rect pos_render;
     SDL_Rect rec_shade;
     SDL_Rect rec;
@@ -144,7 +150,6 @@ int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surfa
             if (M_end){
                 SDL_FreeSurface(character);
                 SDL_FreeSurface(Shade);
-                SDL_DestroyTexture(mTexture);
                 SDL_RenderPresent(renderer);
                 SDL_FreeSurface(TotalBack);
                 SDL_FreeSurface(mouth);
@@ -227,11 +232,16 @@ int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surfa
         //mTexture=SDL_CreateTextureFromSurface(renderer,TotalBack);
 		//SDL_RenderCopy(renderer, mTexture,NULL,&pos_render);
 		SetRec(&pos_render,0,0,Background->w,Background->h);
-		SRFBuff[frame]->SRF=SDL_CreateRGBSurface(0, 1024, 600, 32,0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
-		SDL_BlitSurface(TotalBack,NULL,SRFBuff[frame]->SRF,&pos_render);
-		SRFBuff[frame]->Available=true;
-		frame=(frame+1)%20;
-
+		//SDL_CondSignal(SetBuf);
+		SDL_LockMutex(BufferLock);
+		SDL_CondWait(FillBuf,BufferLock);
+		SRFBuff[frame].SRF=SDL_CreateRGBSurface(0, 1024, 600, 32,0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
+		SDL_BlitSurface(TotalBack,NULL,SRFBuff[frame].SRF,&pos_render);
+		SRFBuff[frame].Available=true;
+		frame=(frame+1)%50;
+		SDL_UnlockMutex(BufferLock);
+		SDL_CondSignal(SetBuf);
+		//cout<<"SRF\n";
 
 		/*if (i==len-3)
             UpdateMouth(mouth, 0);
@@ -292,7 +302,7 @@ bool init(int index)
 
 int DrawScr(void* p)
 {
-	SDL_Texture* All;
+	SDL_Texture* All=NULL;
 	SDL_Rect rect;
 	Uint32 OldTime,CurTime;
 	int top;
@@ -308,16 +318,25 @@ int DrawScr(void* p)
 			if (M_end)
 				return 0;
 		}
-		if(SRFBuff[top]->SRF!=NULL)
-			All=SDL_CreateTextureFromSurface(renderer,SRFBuff[top]->SRF);
+		if(SRFBuff[top].SRF!=NULL)
+			All=SDL_CreateTextureFromSurface(renderer,SRFBuff[top].SRF);
 		if (M_end)
             break;
 		SDL_RenderClear(renderer);
 		SDL_RenderCopy(renderer,All,NULL,&rect);
 		SDL_RenderPresent(renderer);
-		if(SRFBuff[top+1]->Available)
-			top++;
-
+		//cout<<"DRA\n";
+		//SDL_CondSignal(FillBuf);
+		if(SRFBuff[top+1].Available)
+		{
+			SDL_LockMutex(BufferLock);
+			//SDL_CondWait(SetBuf,BufferLock);
+			SRFBuff[top].Available=false;
+			SDL_UnlockMutex(BufferLock);
+			top=(top+1)%50;
+		}//else
+			//SDL_CondWait(SetBuf,BufferLock);
+		SDL_CondSignal(FillBuf);
 	}
     TTF_CloseFont(font);
     return 0;
@@ -336,7 +355,7 @@ int SRFMk(void *p)
     stl=IMG_Load("F:/VS2010PJ/GAME_Dia/Release/lib/others/box00.png");
     background=IMG_Load("F:/VS2010PJ/GAME_Dia/Release/lib/bg/bg01a.jpg");
 	
-	while(M_end)
+	while(!M_end)
 	{
 		if(StackPointer==i&&i<2)
 		{
