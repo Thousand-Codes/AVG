@@ -8,7 +8,7 @@
 
 #ifndef GAME_02_stafx_h
 #define GAME_02_stafx_h
-#define FRESH 35
+#define FRESH 45
 #define MAX 2
 #include <iostream>
 #include <string>

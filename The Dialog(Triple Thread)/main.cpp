@@ -24,7 +24,7 @@
 using std::cout;
 using std::string;
 
-bool quit=false,M_end=false,P_wait=true;
+bool quit=false,M_end=false,P_wait=true,red=true;
 SDL_Event e;
 SDL_Window *window;
 SDL_Surface *icon;
@@ -55,7 +55,6 @@ int main(int argc, char * argv[])
     
     SDL_Thread *Draw;
 	SDL_Thread *compute;
-	bool red=true;
     if(!init(SDL_ALL))
         cout<<"init failed.";
 	BufferLock=SDL_CreateMutex();
@@ -74,9 +73,7 @@ int main(int argc, char * argv[])
 	
     Draw=SDL_CreateThread(DrawScr, "DrawScreen" , NULL);
     while(!quit)
-    {
-		if(red)
-			SDL_CondSignal(redraw);
+    {	
         while(SDL_PollEvent(&e))
             {
                 if (e.type==SDL_QUIT){
@@ -94,8 +91,6 @@ int main(int argc, char * argv[])
                     return 0;
                     
 				}
-				if(red)
-					SDL_CondSignal(redraw);
                 if (e.type==SDL_KEYDOWN)
                     switch (e.key.keysym.sym)
                     {
@@ -103,20 +98,18 @@ int main(int argc, char * argv[])
                             StackPointer++;
                             break;
 					}
-				if(red)
-					SDL_CondSignal(redraw);
 				if(e.type==SDL_WINDOWEVENT)
 					switch (e.window.event)
 					{
 						case SDL_WINDOWEVENT_SHOWN:
 							Mix_ResumeMusic();
 							red=true;
-							//SDL_CondSignal(redraw);
+							SDL_CondSignal(redraw);
 							break;
 						case SDL_WINDOWEVENT_RESTORED:
 							Mix_ResumeMusic();
 							red=true;
-							//SDL_CondSignal(redraw);
+							SDL_CondSignal(redraw);
 							break;
 						case SDL_WINDOWEVENT_HIDDEN:
 							Mix_PauseMusic();
@@ -130,20 +123,16 @@ int main(int argc, char * argv[])
 							if(Mix_PausedMusic())
 								Mix_ResumeMusic();
 							red=true;
-							//SDL_CondSignal(redraw);
+							SDL_CondSignal(redraw);
 							break;
 						case SDL_WINDOWEVENT_FOCUS_LOST:
 							Mix_PauseMusic();
 							red=false;
 							break;
 					}
-					if(red)
-						SDL_CondSignal(redraw);
-                SDL_Delay(10);
+                SDL_Delay(20);
             }
-		if(red)
-			SDL_CondSignal(redraw);
-        SDL_Delay(10);
+        SDL_Delay(20);
     }
 }
     
@@ -170,6 +159,7 @@ int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surfa
     unsigned long int len=str->length();
     char sen[255];
     char ch[3]={' ',' ','\0'};
+	P_wait=true;
     //Uint16 t[]={0x4f60,0x597d,0};
     //mouth=IMG_Load("F:/VS2010PJ/GAME_Dia/Release/lib/cg/crs_bsb06trm.png");
     SDL_RenderClear(renderer);
@@ -186,9 +176,12 @@ int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surfa
     
     for (int i=0; i<len-2; i++) {
         SDL_RenderClear(renderer);
-        SDL_LockMutex(winmtx);
-		SDL_CondWait(redraw,winmtx);
-		SDL_UnlockMutex(winmtx);
+        if(!red)
+		{
+			SDL_LockMutex(winmtx);
+			SDL_CondWait(redraw,winmtx);
+			SDL_UnlockMutex(winmtx);
+		}	
         for (int j=i; j<i+3; j++) {
 			//SDL_CondSignal(SetBuf);
             if (M_end){
@@ -277,15 +270,16 @@ int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surfa
 		//SDL_RenderCopy(renderer, mTexture,NULL,&pos_render);
 		SetRec(&pos_render,0,0,Background->w,Background->h);
 		//SDL_CondSignal(SetBuf);
+		//cout<<"SRF\n";
 		SDL_LockMutex(BufferLock);
-		SDL_CondWait(FillBuf,BufferLock);
+		//SDL_CondWait(FillBuf,BufferLock);
 		SRFBuff[frame].SRF=SDL_CreateRGBSurface(0, 1024, 600, 32,0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
 		SDL_BlitSurface(TotalBack,NULL,SRFBuff[frame].SRF,&pos_render);
 		SRFBuff[frame].Available=true;
 		frame=(frame+1)%200;
 		SDL_UnlockMutex(BufferLock);
 		SDL_CondSignal(SetBuf);
-		//cout<<"SRF\n";
+		
 
 		/*if (i==len-3)
             UpdateMouth(mouth, 0);
@@ -297,6 +291,7 @@ int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surfa
        // SDL_Delay(53);
         //SDL_RenderPresent(renderer);
     }
+	P_wait=false;
 	SDL_FreeSurface(TotalBack);
     return 1;
 };
@@ -363,9 +358,12 @@ int DrawScr(void* p)
 			if (M_end)
 				return 0;
 		}
-		SDL_LockMutex(winmtx);
-		SDL_CondWait(redraw,winmtx);
-		SDL_UnlockMutex(winmtx);
+		if(!red)
+		{
+			SDL_LockMutex(winmtx);
+			SDL_CondWait(redraw,winmtx);
+			SDL_UnlockMutex(winmtx);
+		}
 		if(SRFBuff[top].SRF!=NULL)
 			All=SDL_CreateTextureFromSurface(renderer,SRFBuff[top].SRF);
 		if (M_end)
@@ -375,16 +373,18 @@ int DrawScr(void* p)
 		SDL_RenderPresent(renderer);
 		//cout<<"DRA\n";
 		//SDL_CondSignal(FillBuf);
+
 		if(SRFBuff[top+1].Available)
 		{
 			SDL_LockMutex(BufferLock);
-			//SDL_CondWait(SetBuf,BufferLock);
+			if(P_wait)
+				SDL_CondWait(SetBuf,BufferLock);
 			SRFBuff[top].Available=false;
 			SDL_UnlockMutex(BufferLock);
 			top=(top+1)%200;
 		}//else
 			//SDL_CondWait(SetBuf,BufferLock);
-		SDL_CondSignal(FillBuf);
+		//SDL_CondSignal(FillBuf);
 	}
     TTF_CloseFont(font);
     return 0;
@@ -408,6 +408,7 @@ int SRFMk(void *p)
 		if(StackPointer==i&&i<2)
 		{
 			say("ABC", &str[i],145,450,stl,background);
+			SDL_CondSignal(SetBuf);
 			i++;
 		}
 		SDL_Delay(10);
