@@ -5,3 +5,6 @@ This is the 3rd edition,and use less cpu when unfocused.
 =======
 Just for reference,and u can compile.
 >>>>>>> origin/master
+
+now,we support Chinese.
+use convert to convert GB2312 to Unicode.

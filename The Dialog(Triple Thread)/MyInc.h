@@ -6,9 +6,8 @@
 //  Copyright (c) 2014年 Kevin Neumann. All rights reserved.
 //
 
-#ifndef GAME_02_stafx_h
-#define GAME_02_stafx_h
-#define FRESH 45
+#ifndef MYINC_H
+#define MYINC_H
 #define MAX 2
 #include <iostream>
 #include <string>
@@ -18,8 +17,8 @@
 #include <SDL_mixer.h>
 #include <SDL_thread.h>
 #include <SDL_timer.h>
-
-
+#include "GAME_Dia\convert.h"
+int FRESH=45;
 class scene{
 
 };

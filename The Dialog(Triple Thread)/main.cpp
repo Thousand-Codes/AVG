@@ -101,32 +101,36 @@ int main(int argc, char * argv[])
 				if(e.type==SDL_WINDOWEVENT)
 					switch (e.window.event)
 					{
-						case SDL_WINDOWEVENT_SHOWN:
+						/*case SDL_WINDOWEVENT_SHOWN:
 							Mix_ResumeMusic();
 							red=true;
 							SDL_CondSignal(redraw);
-							break;
+							break;*/
 						case SDL_WINDOWEVENT_RESTORED:
 							Mix_ResumeMusic();
+							FRESH=45;
 							red=true;
 							SDL_CondSignal(redraw);
 							break;
-						case SDL_WINDOWEVENT_HIDDEN:
+						/*case SDL_WINDOWEVENT_HIDDEN:
 							Mix_PauseMusic();
 							red=false;
-							break;
+							break;*/
 						case SDL_WINDOWEVENT_MINIMIZED:
 							Mix_PauseMusic();
+							FRESH=100;
 							red=false;
 							break;
 						case SDL_WINDOWEVENT_FOCUS_GAINED:
 							if(Mix_PausedMusic())
 								Mix_ResumeMusic();
+							FRESH=45;
 							red=true;
 							SDL_CondSignal(redraw);
 							break;
 						case SDL_WINDOWEVENT_FOCUS_LOST:
 							Mix_PauseMusic();
+							FRESH=100;
 							red=false;
 							break;
 					}
@@ -156,14 +160,16 @@ int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surfa
     int wide=0;
     int al=0;
     static int frame=0;
-    unsigned long int len=str->length();
-    char sen[255];
-    char ch[3]={' ',' ','\0'};
+    unsigned long int len=str->length()/2;
+    char sen[510];
 	P_wait=true;
-    //Uint16 t[]={0x4f60,0x597d,0};
+    Uint16 t[255];
+	Uint16 ch;
     //mouth=IMG_Load("F:/VS2010PJ/GAME_Dia/Release/lib/cg/crs_bsb06trm.png");
     SDL_RenderClear(renderer);
+	memset(t,0,sizeof t);
     strcpy(sen, str->c_str());
+	convert(sen,t);
     CreateBackground(Background, DiaStyle, TotalBack);
     rec.x=x;
     rec.y=y;
@@ -183,7 +189,6 @@ int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surfa
 			SDL_UnlockMutex(winmtx);
 		}	
         for (int j=i; j<i+3; j++) {
-			//SDL_CondSignal(SetBuf);
             if (M_end){
                 SDL_FreeSurface(character);
                 SDL_FreeSurface(Shade);
@@ -192,16 +197,16 @@ int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surfa
                 SDL_FreeSurface(mouth);
                 return NULL;
             }
-            ch[1]=sen[j];
-            
-            character=TTF_RenderUTF8_Solid(font,&ch[1],color_text);
-            Shade=TTF_RenderUTF8_Solid(font,&ch[1],color_shade);
-            
+			ch=t[j];
+            //character=TTF_RenderUTF8_Solid(font,&t,color_text);
+            //Shade=TTF_RenderUTF8_Solid(font,&ch[1],color_shade);
+			character=TTF_RenderUNICODE_Solid(font,&ch,color_text);
+			Shade=TTF_RenderUNICODE_Solid(font,&ch,color_shade);
             SDL_SetSurfaceBlendMode(character, SDL_BLENDMODE_BLEND);
             SDL_SetSurfaceBlendMode(Shade, SDL_BLENDMODE_BLEND);
             
             
-            if (i==len-3)
+            if (i>=len-3)
                 al=252;
             else
                 al=(3-j+i)*84;
@@ -221,7 +226,7 @@ int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surfa
                 rec_shade.x=(rec.x+2);
             }
         
-           if ((rec.x==x)&&(ch[1]==' ')) {
+           if ((rec.x==x)&&(ch==0x0020)) {
                 rec.x-=11;
                 rec_shade.x=(rec.x+2);
             }
@@ -353,17 +358,17 @@ int DrawScr(void* p)
 		OldTime=SDL_GetTicks();
 		while(OldTime+FRESH>SDL_GetTicks())
 		{
-			SDL_Delay(11);
+			SDL_Delay(8);
 			//SDL_CondSignal(FillBuf);
 			if (M_end)
 				return 0;
 		}
-		if(!red)
+		/*if(!red)
 		{
 			SDL_LockMutex(winmtx);
 			SDL_CondWait(redraw,winmtx);
 			SDL_UnlockMutex(winmtx);
-		}
+		}*/
 		if(SRFBuff[top].SRF!=NULL)
 			All=SDL_CreateTextureFromSurface(renderer,SRFBuff[top].SRF);
 		if (M_end)
@@ -397,15 +402,15 @@ int SRFMk(void *p)
 	SDL_Texture *mTexture;
 	int i=0;
 
-    string str[2]={"This is a Test.","Linsten,the game will begin and we don't have time to waste!......................................."};
-    font=TTF_OpenFont("F:/VS2010PJ/GAME_Dia/Release/lib/font/raleway.ttf", 25);
-    TTF_SetFontStyle(font, TTF_STYLE_BOLD);
+    string str[]={"看好这可是最新的版本","期待这么久总算是到来了"};
+    font=TTF_OpenFont("F:/VS2010PJ/GAME_Dia/Release/lib/font/font_CN.ttf", 30);
+    //TTF_SetFontStyle(font, TTF_STYLE_BOLD);
     stl=IMG_Load("F:/VS2010PJ/GAME_Dia/Release/lib/others/box00.png");
     background=IMG_Load("F:/VS2010PJ/GAME_Dia/Release/lib/bg/bg01a.jpg");
 	
 	while(!M_end)
 	{
-		if(StackPointer==i&&i<2)
+		if(StackPointer==i&&i<MAX)
 		{
 			say("ABC", &str[i],145,450,stl,background);
 			SDL_CondSignal(SetBuf);
@@ -448,17 +453,17 @@ void CreateNameBox(const char *n,SDL_Surface *total)
     SDL_Color cl={255,255,255,254};
     SDL_Rect rect;
     rect.x=269;
-    rect.y=588;
+    rect.y=570;
     
     namebox[0]=IMG_Load("F:/VS2010PJ/GAME_Dia/Release/lib/others/name01.png");
     namebox[1]=IMG_Load("F:/VS2010PJ/GAME_Dia/Release/lib/others/name02.png");
     nm=TTF_RenderUTF8_Solid(font, n, cl);
     SDL_BlitSurface(namebox[0],NULL,total,&rect);
     rect.x=561;
-    rect.y=588;
+    rect.y=570;
     SDL_BlitSurface(namebox[1],NULL,total,&rect);
     rect.x=463+((100-(nm->w))/2);
-    rect.y=600-nm->h+5;
+    rect.y=rect.y-nm->h+17;
     SDL_BlitSurface(nm,NULL,total,&rect);
     SDL_FreeSurface(namebox[0]);
     SDL_FreeSurface(namebox[1]);
