@@ -8,3 +8,6 @@ Just for reference,and u can compile.
 
 now,we support Chinese.
 use convert to convert GB2312 to Unicode.
+now the font is more beautiful.
+CAUTION!
+it will have a good performance but uses huge memory maybe 1.5G. 

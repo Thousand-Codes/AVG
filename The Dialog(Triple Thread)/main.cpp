@@ -200,8 +200,8 @@ int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surfa
 			ch=t[j];
             //character=TTF_RenderUTF8_Solid(font,&t,color_text);
             //Shade=TTF_RenderUTF8_Solid(font,&ch[1],color_shade);
-			character=TTF_RenderUNICODE_Solid(font,&ch,color_text);
-			Shade=TTF_RenderUNICODE_Solid(font,&ch,color_shade);
+			character=TTF_RenderUNICODE_Blended(font,&ch,color_text);
+			Shade=TTF_RenderUNICODE_Blended(font,&ch,color_shade);
             SDL_SetSurfaceBlendMode(character, SDL_BLENDMODE_BLEND);
             SDL_SetSurfaceBlendMode(Shade, SDL_BLENDMODE_BLEND);
             
@@ -403,7 +403,7 @@ int SRFMk(void *p)
 	int i=0;
 
     string str[]={"看好这可是最新的版本","期待这么久总算是到来了"};
-    font=TTF_OpenFont("F:/VS2010PJ/GAME_Dia/Release/lib/font/font_CN.ttf", 30);
+    font=TTF_OpenFont("F:/VS2010PJ/GAME_Dia/Release/lib/font/simfang.ttf", 27);
     //TTF_SetFontStyle(font, TTF_STYLE_BOLD);
     stl=IMG_Load("F:/VS2010PJ/GAME_Dia/Release/lib/others/box00.png");
     background=IMG_Load("F:/VS2010PJ/GAME_Dia/Release/lib/bg/bg01a.jpg");
@@ -457,7 +457,7 @@ void CreateNameBox(const char *n,SDL_Surface *total)
     
     namebox[0]=IMG_Load("F:/VS2010PJ/GAME_Dia/Release/lib/others/name01.png");
     namebox[1]=IMG_Load("F:/VS2010PJ/GAME_Dia/Release/lib/others/name02.png");
-    nm=TTF_RenderUTF8_Solid(font, n, cl);
+    nm=TTF_RenderUTF8_Blended(font, n, cl);
     SDL_BlitSurface(namebox[0],NULL,total,&rect);
     rect.x=561;
     rect.y=570;
