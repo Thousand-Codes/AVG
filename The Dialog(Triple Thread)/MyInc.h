@@ -18,7 +18,7 @@
 #include <SDL_thread.h>
 #include <SDL_timer.h>
 #include "GAME_Dia\convert.h"
-int FRESH=45;
+int FRESH=50;
 class scene{
 
 };

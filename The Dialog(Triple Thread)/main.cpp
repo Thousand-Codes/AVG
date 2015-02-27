@@ -31,11 +31,11 @@ SDL_Surface *icon;
 SDL_Renderer *renderer;
 SDL_mutex *BufferLock,*winmtx;
 SDL_cond *FillBuf,*SetBuf,*redraw;
-
 TTF_Font *font;
 Mix_Music *BGM;
 int StackPointer=0;
-BufferUnit SRFBuff[200];
+BufferUnit SRFBuffer1,SRFBuffer2;
+BufferUnit *RenderBuf,*DrawBuf;
 
 int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surface *Background);
 void cls();
@@ -46,9 +46,10 @@ void Effect_Fade(SDL_Surface *bksrf);
 void CreateNameBox(const char *n,SDL_Surface *total);
 void CreateBackground(SDL_Surface *back,SDL_Surface *Diastl,SDL_Surface *total);
 void CreateNPC(char NPC[],SDL_Surface *total,int x,int y);
-void Thread_Wait(bool *flag);
 void UpdateMouth(SDL_Surface* mouth,int i);
 void SetRec(SDL_Rect* rect,int x=0,int y=0,int w=0,int h=0);
+void SwapBuffer();
+void x();
 int main(int argc, char * argv[])
 {
     
@@ -57,14 +58,15 @@ int main(int argc, char * argv[])
 	SDL_Thread *compute;
     if(!init(SDL_ALL))
         cout<<"init failed.";
+	RenderBuf=&SRFBuffer1;
+	DrawBuf=&SRFBuffer2;
 	BufferLock=SDL_CreateMutex();
 	winmtx=SDL_CreateMutex();
 	FillBuf=SDL_CreateCond();
 	SetBuf=SDL_CreateCond();
 	redraw=SDL_CreateCond();
-	//SDL_CondSignal(FillBuf);
 	compute=SDL_CreateThread(SRFMk,"SurfacePro",NULL);
-    window=SDL_CreateWindow("Steins;Gate", SDL_WINDOWPOS_UNDEFINED,SDL_WINDOWPOS_UNDEFINED , 1024, 600, SDL_WINDOW_SHOWN);
+    window=SDL_CreateWindow("STEINS;GATE", SDL_WINDOWPOS_UNDEFINED,SDL_WINDOWPOS_UNDEFINED , 1024, 600, SDL_WINDOW_SHOWN);
     icon=IMG_Load("F:/VS2010PJ/GAME_Dia/Release/lib/i.png");
     SDL_SetWindowIcon(window, icon);
     BGM=Mix_LoadMUS("F:/VS2010PJ/GAME_Dia/Release/lib/BGM/bgm05.ogg");
@@ -80,6 +82,7 @@ int main(int argc, char * argv[])
                 
                     M_end=true;
                     SDL_WaitThread(Draw, NULL);
+					SDL_WaitThread(compute, NULL);
                     Mix_HaltMusic();
                     Mix_FreeMusic(BGM);
                     BGM=NULL;
@@ -162,7 +165,7 @@ int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surfa
     static int frame=0;
     unsigned long int len=str->length()/2;
     char sen[510];
-	P_wait=true;
+
     Uint16 t[255];
 	Uint16 ch;
     //mouth=IMG_Load("F:/VS2010PJ/GAME_Dia/Release/lib/cg/crs_bsb06trm.png");
@@ -183,23 +186,17 @@ int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surfa
     for (int i=0; i<len-2; i++) {
         SDL_RenderClear(renderer);
         if(!red)
-		{
-			SDL_LockMutex(winmtx);
-			SDL_CondWait(redraw,winmtx);
-			SDL_UnlockMutex(winmtx);
-		}	
+			SDL_CondWait(redraw,winmtx);	
         for (int j=i; j<i+3; j++) {
             if (M_end){
                 SDL_FreeSurface(character);
                 SDL_FreeSurface(Shade);
-                SDL_RenderPresent(renderer);
+
                 SDL_FreeSurface(TotalBack);
                 SDL_FreeSurface(mouth);
                 return NULL;
             }
 			ch=t[j];
-            //character=TTF_RenderUTF8_Solid(font,&t,color_text);
-            //Shade=TTF_RenderUTF8_Solid(font,&ch[1],color_shade);
 			character=TTF_RenderUNICODE_Blended(font,&ch,color_text);
 			Shade=TTF_RenderUNICODE_Blended(font,&ch,color_shade);
             SDL_SetSurfaceBlendMode(character, SDL_BLENDMODE_BLEND);
@@ -270,35 +267,25 @@ int say(const char *name,string *str,int x,int y,SDL_Surface *DiaStyle,SDL_Surfa
         rec.x-=wide;
         rec_shade.x=(rec.x+2);
         wide=0;
-        
-        //mTexture=SDL_CreateTextureFromSurface(renderer,TotalBack);
-		//SDL_RenderCopy(renderer, mTexture,NULL,&pos_render);
 		SetRec(&pos_render,0,0,Background->w,Background->h);
-		//SDL_CondSignal(SetBuf);
-		//cout<<"SRF\n";
-		SDL_LockMutex(BufferLock);
-		//SDL_CondWait(FillBuf,BufferLock);
-		SRFBuff[frame].SRF=SDL_CreateRGBSurface(0, 1024, 600, 32,0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
-		SDL_BlitSurface(TotalBack,NULL,SRFBuff[frame].SRF,&pos_render);
-		SRFBuff[frame].Available=true;
-		frame=(frame+1)%200;
-		SDL_UnlockMutex(BufferLock);
+	SDL_LockMutex(BufferLock);
+		DrawBuf->SRF=SDL_CreateRGBSurface(0, 1024, 600, 32,0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
+		SDL_BlitSurface(TotalBack,NULL,DrawBuf->SRF,&pos_render);
+		DrawBuf->Available=true;
+	SDL_UnlockMutex(BufferLock);
 		SDL_CondSignal(SetBuf);
+		SDL_CondWait(FillBuf,BufferLock);
 		
+		//SDL_CondSignal(SetBuf);
 
 		/*if (i==len-3)
             UpdateMouth(mouth, 0);
         else
             UpdateMouth(mouth, i);
 			*/
-       
-        //SDL_DestroyTexture(mTexture);
-       // SDL_Delay(53);
-        //SDL_RenderPresent(renderer);
     }
-	P_wait=false;
 	SDL_FreeSurface(TotalBack);
-    return 1;
+    return 0;
 };
 
 
@@ -345,53 +332,22 @@ bool init(int index)
 
 
 int DrawScr(void* p)
-{
-	SDL_Texture* All=NULL;
-	SDL_Rect rect;
+{	
 	Uint32 OldTime,CurTime;
-	int top;
-	SetRec(&rect,0,0,1024,600);
-	renderer=SDL_CreateRenderer(window,-1, SDL_RENDERER_ACCELERATED|SDL_RENDERER_TARGETTEXTURE);
+	renderer=SDL_CreateRenderer(window,-1, SDL_RENDERER_ACCELERATED);
 	while(!M_end)
 	{
 		
 		OldTime=SDL_GetTicks();
-		while(OldTime+FRESH>SDL_GetTicks())
+		while(OldTime+FRESH>SDL_GetTicks()&&!M_end)
 		{
 			SDL_Delay(8);
-			//SDL_CondSignal(FillBuf);
 			if (M_end)
 				return 0;
 		}
-		/*if(!red)
-		{
-			SDL_LockMutex(winmtx);
-			SDL_CondWait(redraw,winmtx);
-			SDL_UnlockMutex(winmtx);
-		}*/
-		if(SRFBuff[top].SRF!=NULL)
-			All=SDL_CreateTextureFromSurface(renderer,SRFBuff[top].SRF);
-		if (M_end)
-            break;
-		SDL_RenderClear(renderer);
-		SDL_RenderCopy(renderer,All,NULL,&rect);
-		SDL_RenderPresent(renderer);
-		//cout<<"DRA\n";
-		//SDL_CondSignal(FillBuf);
-
-		if(SRFBuff[top+1].Available)
-		{
-			SDL_LockMutex(BufferLock);
-			if(P_wait)
-				SDL_CondWait(SetBuf,BufferLock);
-			SRFBuff[top].Available=false;
-			SDL_UnlockMutex(BufferLock);
-			top=(top+1)%200;
-		}//else
-			//SDL_CondWait(SetBuf,BufferLock);
-		//SDL_CondSignal(FillBuf);
+		SwapBuffer();
 	}
-    TTF_CloseFont(font);
+	SDL_FreeSurface(RenderBuf->SRF);
     return 0;
 };
 
@@ -399,25 +355,30 @@ int SRFMk(void *p)
 {
 	SDL_Surface *stl;
     SDL_Surface *background;
-	SDL_Texture *mTexture;
 	int i=0;
 
     string str[]={"看好这可是最新的版本","期待这么久总算是到来了"};
     font=TTF_OpenFont("F:/VS2010PJ/GAME_Dia/Release/lib/font/simfang.ttf", 27);
-    //TTF_SetFontStyle(font, TTF_STYLE_BOLD);
+    TTF_SetFontStyle(font, TTF_STYLE_BOLD);
     stl=IMG_Load("F:/VS2010PJ/GAME_Dia/Release/lib/others/box00.png");
     background=IMG_Load("F:/VS2010PJ/GAME_Dia/Release/lib/bg/bg01a.jpg");
 	
-	while(!M_end)
+	while(i<MAX&&!M_end)
 	{
-		if(StackPointer==i&&i<MAX)
+		if(StackPointer==i)
 		{
 			say("ABC", &str[i],145,450,stl,background);
 			SDL_CondSignal(SetBuf);
 			i++;
 		}
+		if (M_end)
+			break;
 		SDL_Delay(10);
-	}		
+		SDL_Delay(10);
+	}
+	SDL_FreeSurface(stl);
+	SDL_FreeSurface(background);
+	TTF_CloseFont(font);
 	return 0;
 }
 void Effect_Fade(SDL_Surface *bksrf)
@@ -493,26 +454,13 @@ void CreateNPC(char NPC[],SDL_Surface *total,int x,int y)
 {
     SDL_Rect rect;
     SDL_Surface *NPCSur;
-    NPCSur=IMG_Load("F:/VS2010PJ/GAME_Dia/Release/lib/cg/crs_bsb06a.png");
+    NPCSur=IMG_Load(NPC);
     rect.x=x;
     rect.y=y;
     rect.w=NPCSur->w;
     rect.h=NPCSur->h;
     SDL_BlitSurface(NPCSur,NULL,total,&rect);
     SDL_FreeSurface(NPCSur);
-};
-
-void Thread_Wait(bool *flag)
-{
-        while (*flag) {
-            if (M_end)
-                break;
-            SDL_Delay(10);
-            SDL_Delay(20);
-            SDL_Delay(30);
-            SDL_Delay(40);
-        }
-    *flag=true;
 };
 
 void UpdateMouth(SDL_Surface* mouth,int i)
@@ -538,11 +486,41 @@ void UpdateMouth(SDL_Surface* mouth,int i)
 	//cout<<SDL_SetRenderTarget(renderer,texture);
     SDL_RenderCopy(renderer, Tex_mouth, &mouth_rect[i%6], &blit_rect[i%6]);
     SDL_DestroyTexture(Tex_mouth);
-}
+};
+
 void SetRec(SDL_Rect* rect,int x,int y,int w,int h)
 {
     rect->x=x;
     rect->y=y;
     rect->w=w;
     rect->h=h;
-}
+};
+
+void SwapBuffer()
+{
+	
+	SDL_Rect rect;
+	SDL_Texture* All=NULL;
+	BufferUnit *temp;
+	SetRec(&rect,0,0,1024,600);
+
+	if(RenderBuf->SRF!=NULL)
+		All=SDL_CreateTextureFromSurface(renderer,RenderBuf->SRF);
+	SDL_RenderClear(renderer);
+	SDL_RenderCopy(renderer,All,NULL,&rect);
+	SDL_RenderPresent(renderer);
+	if (M_end)
+		return;
+	RenderBuf->Available=false;
+	if(DrawBuf->Available)
+	{
+			SDL_LockMutex(BufferLock);
+			temp=RenderBuf;
+			RenderBuf=DrawBuf;
+			DrawBuf=temp;
+			SDL_UnlockMutex(BufferLock);
+	}
+			SDL_CondSignal(FillBuf);
+			//SDL_UnlockMutex(BufferLock);
+	SDL_DestroyTexture(All);
+};

@@ -10,4 +10,7 @@ now,we support Chinese.
 use convert to convert GB2312 to Unicode.
 now the font is more beautiful.
 CAUTION!
-it will have a good performance but uses huge memory maybe 1.5G. 
+it will have a good performance but uses huge memory maybe 1.5G.
+
+Ok,we've solved the mem problem and updated a new method.It is using duoble independent Buffer instead of BufferArray.
+The default FPS is 20.
